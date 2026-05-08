@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="長照計費">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1a6b45">
+    <link rel="manifest" href="manifest.json">
+    <title>居家長照計費計算機</title>
+    <style>
+    /* ══ CSS 變數 ══ */
+    :root {
+        --bg:       #f0f4f8; --card:   #ffffff; --text:  #2d3748;
+        --muted:    #555555; --faint:  #999999; --bdr:   #f0f0f0;
+        --inp-bg:   #ffffff; --inp-bdr:#cccccc;
+        --row-alt:  #fafcfa; --row-sp: #fffbeb;
+        --green:    #1a6b45; --green-lt:#e6f4ed;
+        --amber:    #92400e; --amber-lt:#fef3c7;
+        --hint-bg:  #edf2ff; --hint-txt:#4a5568;
+        --shadow:   rgba(0,0,0,0.07);
+    }
+    [data-theme="dark"] {
+        --bg:#0f172a; --card:#1e293b; --text:#e2e8f0;
+        --muted:#94a3b8; --faint:#64748b; --bdr:#2d3f55;
+        --inp-bg:#0f172a; --inp-bdr:#4a6080;
+        --row-alt:#192035; --row-sp:#292210;
+        --green:#1a6b45; --green-lt:#163325;
+        --amber:#92400e; --amber-lt:#292210;
+        --hint-bg:#1a2040; --hint-txt:#93c5fd;
+        --shadow:rgba(0,0,0,0.3);
+    }
+
+    /* ══ 基礎 ══ */
+    * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','PingFang TC',sans-serif;
+           background:var(--bg); color:var(--text); min-height:100vh; padding-bottom:40px;
+           transition:background .25s,color .25s; }
+
+    /* ══ 頂部 ══ */
+    .header { background:linear-gradient(135deg,#1a6b45,#2e9c66); color:white;
+              padding:12px 16px 10px; position:sticky; top:0; z-index:200;
+              box-shadow:0 3px 10px rgba(0,0,0,.25);
+              display:flex; align-items:center; justify-content:space-between; }
+    .header-center { text-align:center; flex:1; }
+    .header h1 { font-size:15px; font-weight:700; letter-spacing:.5px; }
+    .header p  { font-size:11px; opacity:.85; margin-top:2px; }
+    .dark-toggle { background:rgba(255,255,255,.2); border:1px solid rgba(255,255,255,.4);
+                   border-radius:20px; color:white; padding:5px 10px; font-size:12px;
+                   font-weight:600; cursor:pointer; white-space:nowrap; flex-shrink:0; }
+
+    /* ══ 卡片 ══ */
+    .container { padding:12px; max-width:560px; margin:0 auto; }
+    .card { background:var(--card); border-radius:14px; padding:12px 14px;
+            margin-bottom:12px; box-shadow:0 2px 10px var(--shadow); transition:background .25s; }
+    .card-title { font-size:12px; font-weight:700; color:var(--green); margin-bottom:10px;
+                  padding-bottom:7px; border-bottom:2px solid var(--green-lt);
+                  display:flex; align-items:center; gap:6px; }
+    .card-title.amber { color:#b45309; border-bottom-color:var(--amber-lt); }
+    .step-badge { background:var(--green); color:white; border-radius:50%; width:18px; height:18px;
+                  display:inline-flex; align-items:center; justify-content:center;
+                  font-size:10px; font-weight:700; flex-shrink:0; }
+    .step-badge.amber { background:#b45309; }
+
+    /* ══ CMS 按鈕 ══ */
+    .cms-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+    .cms-btn { background:var(--row-alt); border:2px solid var(--bdr); border-radius:9px;
+               padding:5px 2px; text-align:center; cursor:pointer; transition:all .15s; user-select:none; }
+    .cms-btn .lv-top   { font-size:10px; font-weight:600; color:var(--muted); }
+    .cms-btn .lv-quota { font-size:11px; font-weight:800; color:var(--green); margin-top:2px; letter-spacing:-.5px; }
+    .cms-btn.active { background:var(--green); border-color:var(--green); }
+    .cms-btn.active .lv-top   { color:rgba(255,255,255,.8); }
+    .cms-btn.active .lv-quota { color:white; }
+
+    /* ══ 福利身分 ══ */
+    .welfare-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+    .welfare-btn { background:var(--row-alt); border:2px solid var(--bdr); border-radius:9px;
+                   padding:7px 4px; text-align:center; cursor:pointer; transition:all .15s; user-select:none; }
+    .welfare-btn .w-name { font-size:11px; font-weight:700; color:var(--text); }
+    .welfare-btn .w-rate { font-size:10px; color:var(--faint); margin-top:2px; }
+    .welfare-btn.active { background:var(--green-lt); border-color:var(--green); }
+    .welfare-btn.active .w-name { color:var(--green); }
+    .welfare-btn.active .w-rate { color:#2e9c66; }
+
+    /* ══ 服務表格（BA碼）══ */
+    .card.no-pad { padding:0; overflow:hidden; }
+    .table-head { background:var(--green); color:white; display:grid;
+                  grid-template-columns:60px 1fr 50px 50px 46px 60px;
+                  gap:2px; padding:6px 5px; font-size:10px; font-weight:700;
+                  text-align:center; align-items:center; }
+    .table-head .th-name  { text-align:left; padding-left:4px; }
+    .table-head .th-price { text-align:left; padding-left:3px; }
+    .svc-row { display:grid; grid-template-columns:60px 1fr 50px 50px 46px 60px;
+               gap:2px; padding:1px 5px; border-bottom:1px solid var(--bdr);
+               align-items:center; font-size:11px; }
+    .svc-row:nth-child(even) { background:var(--row-alt); }
+
+    .svc-code   { font-weight:800; color:var(--green); font-size:10px; text-align:center; }
+    .svc-note   { font-size:9px; color:var(--faint); text-align:center; }
+    .svc-note-tag { font-size:9px; color:var(--faint); margin-left:3px; white-space:nowrap; }
+    .svc-name   { font-size:11px; color:var(--text); line-height:1.25; padding-left:4px; }
+    .cell-price { text-align:left; padding-left:3px; color:var(--muted); font-weight:600; font-size:11px; }
+    .cell-copay { text-align:center; color:#c05000; font-weight:600; font-size:11px; }
+    .cell-units { text-align:center; display:flex; align-items:center; justify-content:center; }
+    .cell-sub   { text-align:right; font-weight:700; font-size:11px; color:var(--faint); padding-right:2px; }
+    .cell-sub.has-val { color:#c05000; }
+
+    /* ══ 喘息服務表格（年度）══ */
+    .resp-head { background:#b45309; color:white; display:grid;
+                 grid-template-columns:60px 1fr 52px 52px 46px 62px;
+                 gap:2px; padding:6px 5px; font-size:10px; font-weight:700;
+                 text-align:center; align-items:center; }
+    .resp-head .th-name { text-align:left; padding-left:4px; }
+    .resp-row { display:grid; grid-template-columns:60px 1fr 52px 52px 46px 62px;
+                gap:2px; padding:2px 5px; border-bottom:1px solid var(--bdr);
+                align-items:center; font-size:11px; background:var(--amber-lt); }
+    .resp-row:nth-child(even) { background:#fde68a22; }
+    .resp-code  { font-weight:800; color:#b45309; font-size:10px; text-align:center; }
+    .cell-limit { text-align:center; font-weight:700; color:#b45309; font-size:11px; }
+
+    /* 年度額度提示 */
+    .resp-info { background:var(--amber-lt); border-radius:8px; padding:7px 10px;
+                 font-size:11px; color:#92400e; margin-bottom:8px; line-height:1.5; }
+
+    /* ══ 輸入框 ══ */
+    .unit-inp { width:100%; border:1.5px solid var(--inp-bdr); border-radius:6px; padding:4px 2px;
+                font-size:14px; font-weight:700; text-align:center; color:var(--text);
+                background:var(--inp-bg); -webkit-appearance:none; }
+    .unit-inp:focus { outline:none; border-color:var(--green); background:var(--green-lt); }
+    .unit-inp.amber-inp:focus { border-color:#b45309; background:var(--amber-lt); }
+
+    /* ══ 進度條 ══ */
+    .prog-wrap { margin-bottom:10px; }
+    .prog-labels { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-bottom:4px; }
+    .prog-bar { height:13px; background:var(--bdr); border-radius:7px; overflow:hidden; }
+    .prog-fill { height:100%; border-radius:7px; background:linear-gradient(90deg,#2e9c66,#1a6b45); transition:width .35s ease; }
+    .prog-fill.over { background:linear-gradient(90deg,#fc8181,#c53030); }
+
+    /* ══ 計算結果 ══ */
+    .sum-section { font-size:11px; font-weight:700; color:var(--faint); letter-spacing:.6px;
+                   padding:6px 0 4px; border-bottom:1px solid var(--bdr); margin-bottom:2px; }
+    .sum-row { display:flex; justify-content:space-between; align-items:center;
+               padding:4px 0; border-bottom:1px solid var(--bdr); font-size:13px; }
+    .sum-row:last-child { border-bottom:none; }
+    .sum-lbl { color:var(--muted); }
+    .sum-val  { font-weight:700; font-size:15px; color:var(--text); }
+    .sum-val.green  { color:var(--green); }
+    .sum-val.orange { color:#c05000; }
+    .sum-val.red    { color:#c53030; }
+    .sum-val.amber  { color:#b45309; }
+
+    .warn-box { background:#fff5f5; border:1px solid #fc8181; border-radius:8px;
+                padding:8px 12px; font-size:12px; color:#c53030; margin:6px 0; display:none; }
+    .warn-box.show { display:block; }
+    .selfpay-note { background:#fff3cd; border:1px solid #ffc107; border-radius:8px;
+                    padding:7px 12px; font-size:12px; color:#856404; margin-bottom:8px; display:none; }
+    .selfpay-note.show { display:block; }
+
+    .grand-box { background:linear-gradient(135deg,#fff3cd,#ffe69c); border-radius:12px;
+                 padding:14px; margin-top:12px; text-align:center; }
+    .grand-box .g-label  { font-size:12px; color:#856404; }
+    .grand-box .g-amount { font-size:32px; font-weight:800; color:#856404; letter-spacing:-1px; margin:4px 0 2px; }
+
+    /* ══ 按鈕 ══ */
+    .btn-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:6px; }
+    .btn-line  { background:#06C755; color:white; border:none; border-radius:12px;
+                 padding:14px; font-size:14px; font-weight:700; cursor:pointer;
+                 grid-column:1/-1; }
+    .btn-line:active { background:#05a847; }
+    .btn-pdf   { background:var(--green); color:white; border:none; border-radius:12px;
+                 padding:13px; font-size:14px; font-weight:700; cursor:pointer; }
+    .btn-pdf:active { background:#145236; }
+    .btn-reset { background:#e53e3e; color:white; border:none; border-radius:12px;
+                 padding:13px; font-size:14px; font-weight:700; cursor:pointer; }
+    .btn-reset:active { background:#c53030; }
+
+    /* ══ 提示條 ══ */
+    .hint-bar { background:var(--hint-bg); border-radius:8px; padding:8px 14px;
+                font-size:12px; color:var(--hint-txt); text-align:center; margin-bottom:12px; }
+    .hint-bar.hidden { display:none; }
+
+    /* ══ PDF Modal ══ */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:500;
+                     display:flex; align-items:flex-end; justify-content:center; }
+    .modal-box { background:var(--card); border-radius:20px 20px 0 0; width:100%;
+                 max-width:560px; max-height:85vh; overflow-y:auto; padding:20px 18px 30px; }
+    .modal-drag-bar { width:40px; height:4px; background:var(--bdr); border-radius:2px; margin:0 auto 16px; }
+    .modal-title { font-size:16px; font-weight:800; color:var(--text); margin-bottom:14px; }
+    .modal-section-label { font-size:11px; font-weight:700; color:var(--faint);
+                           text-transform:uppercase; letter-spacing:.8px; margin-bottom:8px; }
+    .modal-radio { display:flex; align-items:flex-start; gap:10px; padding:9px 10px;
+                   border:2px solid var(--bdr); border-radius:10px; margin-bottom:6px; cursor:pointer; transition:all .15s; }
+    .modal-radio:has(input:checked) { border-color:var(--green); background:var(--green-lt); }
+    .modal-radio input[type="radio"] { margin-top:2px; flex-shrink:0; accent-color:var(--green); width:16px; height:16px; }
+    .modal-radio-text .mr-title { font-size:13px; font-weight:700; color:var(--text); }
+    .modal-radio-text .mr-sub   { font-size:11px; color:var(--muted); margin-top:1px; }
+    /* 第二頁 */
+    .modal-panel2-hdr { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+    .modal-back-btn { background:none; border:none; color:var(--green); font-size:22px;
+                      font-weight:800; cursor:pointer; padding:0 4px; line-height:1; }
+    .modal-chk-bar { display:flex; gap:8px; margin-bottom:10px; }
+    .modal-chk-all-btn { flex:1; padding:9px; border:1.5px solid var(--bdr); border-radius:10px;
+                          background:var(--inp-bg); color:var(--text); font-size:12px;
+                          font-weight:700; cursor:pointer; }
+    .modal-checklist { max-height:380px; overflow-y:auto; -webkit-overflow-scrolling:touch;
+                       border:1.5px solid var(--bdr); border-radius:10px; margin-bottom:14px; }
+    .chk-item { display:flex; align-items:center; gap:10px; padding:10px 12px;
+                border-bottom:1px solid var(--bdr); cursor:pointer; user-select:none; }
+    .chk-item:last-child { border-bottom:none; }
+    .chk-item:nth-child(even) { background:var(--row-alt); }
+    .chk-item:active { background:var(--green-lt); }
+    .chk-item input[type="checkbox"] { flex-shrink:0; accent-color:var(--green);
+        width:20px; height:20px; cursor:pointer; }
+    .chk-code { font-size:10px; font-weight:800; color:var(--green); width:46px; flex-shrink:0; }
+    .chk-code.amber { color:#b45309; }
+    .chk-name { font-size:11px; color:var(--text); flex:1; }
+    .chk-qty  { font-size:11px; font-weight:700; color:#c05000; flex-shrink:0; }
+    .chk-grp-label { font-size:10px; font-weight:700; color:var(--faint); padding:6px 12px 4px;
+                     background:var(--row-alt); letter-spacing:.5px; }
+    .fs-btn-group { display:flex; gap:8px; margin-bottom:4px; }
+    .fs-btn { flex:1; padding:10px 4px; border:1.5px solid var(--bdr); border-radius:10px;
+              background:var(--inp-bg); color:var(--text); font-size:13px; font-weight:700;
+              cursor:pointer; text-align:center; line-height:1.4; }
+    .fs-btn span { font-size:10px; font-weight:400; opacity:.7; }
+    .fs-btn.active { border-color:var(--green); background:var(--green-lt); color:var(--green); }
+    .fs-btn.active span { opacity:1; }
+    .modal-btns { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:4px; }
+    .modal-btn-print  { background:var(--green); color:white; border:none; border-radius:12px; padding:14px; font-size:14px; font-weight:700; cursor:pointer; }
+    .modal-btn-cancel { background:var(--bdr); color:var(--muted); border:none; border-radius:12px; padding:14px; font-size:14px; font-weight:600; cursor:pointer; }
+
+    .footer-note { text-align:center; padding:16px 0 4px; font-size:10px; color:var(--faint); line-height:1.8; }
+
+    /* ══ 列印 ══ */
+    #printArea { display:none; }
+    @media print {
+        html,body { background:white !important; color:#000 !important; }
+        .header,.container,.modal-overlay { display:none !important; }
+        #printArea { display:block !important; font-family:'Noto Sans TC',Arial,sans-serif; padding:0; }
+        /* 所有列印文字強制純黑，再針對特殊元素覆寫 */
+        #printArea * { color:#000 !important; }
+        .pa-ba-head th, .pa-resp-head th { color:#fff !important; }
+        .pa-grand span { color:#000 !important; }
+
+        .pa-hdr { text-align:center; margin-bottom:12px; border-bottom:3px solid #1a6b45; padding-bottom:10px; }
+        .pa-hdr h1 { font-size:20px; font-weight:900; color:#000000; }
+        .pa-hdr h2 { font-size:14px; font-weight:700; color:#111111; margin-top:4px; }
+        .pa-hdr .pa-date { font-size:11px; color:#000000; margin-top:5px; font-weight:600; }
+
+        .pa-info { display:flex; gap:20px; flex-wrap:wrap; background:#f0f7f3;
+                   border-radius:6px; padding:8px 12px; margin-bottom:12px;
+                   font-size:12px; color:#111; }
+        .pa-info span { font-weight:700; }
+
+        .pa-section-label { font-size:11px; font-weight:800; color:#1a6b45; letter-spacing:.5px;
+                            margin:12px 0 6px; text-transform:uppercase; border-left:3px solid #1a6b45; padding-left:6px; }
+        .pa-section-label.amber { color:#b45309; border-left-color:#b45309; }
+
+        .pa-table { width:100%; border-collapse:collapse; font-size:11px; margin-bottom:4px; }
+        .pa-table th { padding:6px 5px; text-align:center; font-weight:700; color:#fff; }
+        .pa-table th.thl { text-align:left; }
+        .pa-table td { padding:3px 5px; border-bottom:1px solid #e0e0e0; text-align:center; }
+        .pa-table td.tdl { text-align:left; }
+        .pa-table tr:nth-child(even) td { background:#fafafa; }
+        .pa-ba-head th  { background:#1a6b45; }
+        .pa-resp-head th { background:#b45309; }
+
+        .pa-summary-box { border:1px solid #ddd; border-radius:8px; padding:10px 12px; margin-top:12px; }
+        .pa-sum-section { font-size:10px; font-weight:800; color:#1a6b45; letter-spacing:.5px; margin:8px 0 4px; }
+        .pa-sum-section.amber { color:#b45309; }
+        .pa-sum-row { display:flex; justify-content:space-between; padding:3px 0;
+                      font-size:12px; border-bottom:1px solid #f0f0f0; }
+        .pa-sum-row span:last-child { font-weight:700; }
+        .pa-grand { display:flex; justify-content:space-between; padding:10px 10px;
+                    background:#fff3cd; border-radius:8px; margin-top:8px; }
+        .pa-grand span:first-child { font-size:13px; font-weight:700; color:#856404; }
+        .pa-grand span:last-child  { font-size:18px; font-weight:800; color:#856404; }
+
+        .pa-footer { border-top:1px solid #ddd; margin-top:14px; padding-top:8px;
+                     font-size:11px; color:#111; font-weight:600; line-height:2; }
+
+        @page { margin:1.5cm; size:A4 portrait; }
+    }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div style="width:60px;"></div>
+    <div class="header-center">
+        <h1>臺南市私立全能居家長照機構</h1>
+        <p>居家長照服務計費計算機</p>
+    </div>
+    <button class="dark-toggle" id="darkToggle" onclick="toggleDark()">🌙 夜間</button>
+</div>
+
+<div class="container">
+
+    <!-- ① CMS -->
+    <div class="card">
+        <div class="card-title"><span class="step-badge">1</span>選擇長照等級（CMS）</div>
+        <div class="cms-grid" id="cmsGrid"></div>
+    </div>
+
+    <!-- ② 福利身分 -->
+    <div class="card">
+        <div class="card-title"><span class="step-badge">2</span>選擇社會福利身分</div>
+        <div class="welfare-grid" id="welfareGrid"></div>
+    </div>
+
+    <div class="hint-bar" id="hintBar">⬆ 請先選擇長照等級與福利身分，再輸入各服務組數</div>
+
+    <!-- ③ BA 照顧服務 -->
+    <div class="card no-pad" id="serviceCard" style="display:none;">
+        <div style="padding:10px 14px 7px;">
+            <div class="card-title" style="margin:0;border:0;padding:0;">
+                <span class="step-badge">3</span>BA 照顧及專業服務（月額度）
+            </div>
+        </div>
+        <div class="table-head">
+            <div>編號</div>
+            <div class="th-name">服務項目</div>
+            <div class="th-price">給付<br>價格</div>
+            <div>自付<br>/組</div>
+            <div>組數</div>
+            <div style="text-align:right;padding-right:2px;">小計<br>自付</div>
+        </div>
+        <div id="serviceList"></div>
+    </div>
+
+    <!-- ④ 喘息 / 短照（年度額度）-->
+    <div class="card no-pad" id="respCard" style="display:none;">
+        <div style="padding:10px 14px 7px;">
+            <div class="card-title amber" style="margin:0;border:0;padding:0;">
+                <span class="step-badge amber">4</span>居家喘息 / 短照服務（年度額度）
+            </div>
+        </div>
+        <div style="padding:0 12px 8px;">
+            <div class="resp-info" id="respInfo">請先選擇 CMS 等級以顯示年度組數上限</div>
+        </div>
+        <div class="resp-head">
+            <div>編號</div>
+            <div class="th-name">服務項目</div>
+            <div>年度<br>上限</div>
+            <div>自付<br>/組</div>
+            <div>組數</div>
+            <div style="text-align:right;padding-right:2px;">本月<br>自付</div>
+        </div>
+        <div id="respList"></div>
+    </div>
+
+    <!-- ⑤ 計算結果 -->
+    <div class="card" id="summaryCard" style="display:none;">
+        <div class="card-title"><span class="step-badge">5</span>計算結果</div>
+
+        <!-- BA 進度條 -->
+        <div id="progSection">
+            <div class="prog-wrap">
+                <div class="prog-labels"><span>BA 照顧服務補助使用量</span><span id="progText">$0 / $0</span></div>
+                <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+            </div>
+        </div>
+
+        <div class="selfpay-note" id="selfpayNote">⚠️ 自費戶不享有政府補助，所有費用均由個案全額自付。</div>
+        <div class="warn-box" id="warnBox">⚠️ BA 照顧服務已超出月給付額度！超出 <strong id="excessAmt">$0</strong>，超出部分需個案全額自費。</div>
+
+        <!-- BA 摘要 -->
+        <div class="sum-section">BA 照顧及專業服務</div>
+        <div class="sum-row" id="quotaRow">
+            <div class="sum-lbl">月給付額度上限</div>
+            <div class="sum-val green" id="sMonthlyQuota">─</div>
+        </div>
+        <div class="sum-row" id="remainRow">
+            <div class="sum-lbl">剩餘可用額度</div>
+            <div class="sum-val green" id="sRemain">─</div>
+        </div>
+        <div class="sum-row">
+            <div class="sum-lbl">民眾部分負擔</div>
+            <div class="sum-val orange" id="sCopay">$0</div>
+        </div>
+        <div class="sum-row">
+            <div class="sum-lbl">超額自費金額</div>
+            <div class="sum-val red" id="sExcess">$0</div>
+        </div>
+
+        <!-- 喘息摘要 -->
+        <div class="sum-section" style="margin-top:8px;color:#b45309;border-bottom-color:var(--amber-lt);">居家喘息 / 短照服務（年度）</div>
+        <div class="sum-row">
+            <div class="sum-lbl">GA09 居家喘息自付</div>
+            <div class="sum-val amber" id="sRespGA09">$0</div>
+        </div>
+        <div class="sum-row">
+            <div class="sum-lbl">SC09 短照服務自付</div>
+            <div class="sum-val amber" id="sRespSC09">$0</div>
+        </div>
+
+        <!-- 總計 -->
+        <div class="grand-box">
+            <div class="g-label">本月個案需自付總金額</div>
+            <div class="g-amount">$ <span id="sGrand">0</span></div>
+        </div>
+    </div>
+
+    <div class="btn-row" id="btnRow" style="display:none;">
+        <button class="btn-line"  onclick="shareToLine()">💬 傳送計費明細給案家 LINE</button>
+        <button class="btn-pdf"   onclick="openPdfModal()">📄 匯出PDF</button>
+        <button class="btn-reset" onclick="resetAll()">🗑 清除重算</button>
+    </div>
+
+    <div class="footer-note">
+        依衛服部長照給付基準<br>
+        臺南市私立全能居家長照機構 · 計費計算機 v2.1
+    </div>
+</div>
+
+<!-- PDF Modal -->
+<div class="modal-overlay" id="pdfModal" style="display:none;" onclick="modalBgClick(event)">
+    <div class="modal-box">
+
+        <!-- ── 第一頁：選擇模式 ── -->
+        <div id="modalPanel1">
+            <div class="modal-drag-bar"></div>
+            <div class="modal-title">📄 匯出PDF設定</div>
+            <div class="modal-section-label">顯示項目</div>
+            <div>
+                <label class="modal-radio">
+                    <input type="radio" name="pdfMode" value="with-service" checked>
+                    <div class="modal-radio-text">
+                        <div class="mr-title">僅顯示有服務的項目</div>
+                        <div class="mr-sub">只列出已輸入組數的項目（推薦）</div>
+                    </div>
+                </label>
+                <label class="modal-radio">
+                    <input type="radio" name="pdfMode" value="all">
+                    <div class="modal-radio-text">
+                        <div class="mr-title">顯示全部項目</div>
+                        <div class="mr-sub">列出所有服務項目含空白組數</div>
+                    </div>
+                </label>
+                <label class="modal-radio" onclick="openCustomPanel()">
+                    <input type="radio" name="pdfMode" value="custom">
+                    <div class="modal-radio-text">
+                        <div class="mr-title">自訂選擇</div>
+                        <div class="mr-sub">點此選擇要列印的項目 →</div>
+                    </div>
+                </label>
+            </div>
+            <div id="selCountBar" style="display:none; text-align:center; font-size:12px;
+                 color:var(--green); font-weight:700; padding:6px 0; margin-top:4px;"></div>
+            <div class="modal-section-label" style="margin-top:14px;">列印字體大小</div>
+            <div class="fs-btn-group">
+                <button class="fs-btn active" id="fsBtn1" onclick="setFontScale(1,   'fsBtn1')">標準<br><span>100%</span></button>
+                <button class="fs-btn"        id="fsBtn2" onclick="setFontScale(1.2, 'fsBtn2')">較大<br><span>120%</span></button>
+                <button class="fs-btn"        id="fsBtn3" onclick="setFontScale(1.4, 'fsBtn3')">最大<br><span>140%</span></button>
+            </div>
+            <div class="modal-btns" style="margin-top:14px;">
+                <button class="modal-btn-print"  onclick="doPrint()">列印 / 儲存PDF</button>
+                <button class="modal-btn-cancel" onclick="closeModal()">取消</button>
+            </div>
+        </div>
+
+        <!-- ── 第二頁：勾選項目 ── -->
+        <div id="modalPanel2" style="display:none;">
+            <div class="modal-panel2-hdr">
+                <button class="modal-back-btn" onclick="confirmCustom()">←</button>
+                <span class="modal-title" style="margin:0;">選擇列印項目</span>
+            </div>
+            <div class="modal-chk-bar">
+                <button class="modal-chk-all-btn" onclick="checkAll(true)">全部勾選</button>
+                <button class="modal-chk-all-btn" onclick="checkAll(false)">全部取消</button>
+            </div>
+            <div class="modal-checklist" id="customList"></div>
+            <button class="modal-btn-print" style="width:100%;" onclick="confirmCustom()">確定，回到列印設定</button>
+        </div>
+
+    </div>
+</div>
+
+<div id="printArea"></div>
+
+<script>
+/* ═══ 資料 ═══ */
+const CMS_QUOTA = { 2:10020, 3:15460, 4:18580, 5:24100, 6:28070, 7:32090, 8:36180 };
+
+const WELFARE = [
+    { key:'低收', label:'第一類', rate:'負擔 0%',   isSelfPay:false },
+    { key:'中低', label:'第二類', rate:'負擔 5%',   isSelfPay:false },
+    { key:'一般', label:'第三類', rate:'負擔 16%',  isSelfPay:false },
+    { key:'自費', label:'自費戶', rate:'全額 100%', isSelfPay:true  }
+];
+
+/* BA 照顧服務（月額度計算）*/
+const SERVICES = [
+    { code:'BA01',   name:'基本身體清潔',                    price:260, copay:{低收:0,中低:13, 一般:41, 自費:260}, note:'' },
+    { code:'BA02',   name:'基本日常照顧',                    price:195, copay:{低收:0,中低:9,  一般:31, 自費:195}, note:'30分/組' },
+    { code:'BA03',   name:'測量生命徵象',                    price:35,  copay:{低收:0,中低:1,  一般:5,  自費:35 }, note:'' },
+    { code:'BA04',   name:'協助進食或管灌餵食',              price:130, copay:{低收:0,中低:6,  一般:20, 自費:130}, note:'' },
+    { code:'BA05',   name:'餐食照顧',                        price:310, copay:{低收:0,中低:15, 一般:49, 自費:310}, note:'' },
+    { code:'BA07',   name:'協助沐浴及洗頭',                  price:325, copay:{低收:0,中低:16, 一般:52, 自費:325}, note:'' },
+    { code:'BA08',   name:'足部照顧',                        price:500, copay:{低收:0,中低:25, 一般:80, 自費:500}, note:'' },
+    { code:'BA10',   name:'翻身拍背',                        price:155, copay:{低收:0,中低:7,  一般:24, 自費:155}, note:'' },
+    { code:'BA11',   name:'肢體關節活動',                    price:195, copay:{低收:0,中低:9,  一般:31, 自費:195}, note:'' },
+    { code:'BA12',   name:'協助上下樓梯',                    price:130, copay:{低收:0,中低:6,  一般:20, 自費:130}, note:'' },
+    { code:'BA13',   name:'陪同外出',                        price:195, copay:{低收:0,中低:9,  一般:31, 自費:195}, note:'30分/組' },
+    { code:'BA14',   name:'陪同就醫',                        price:685, copay:{低收:0,中低:34, 一般:109,自費:685}, note:'90分/組' },
+    { code:'BA15-1', name:'協助家務（自用）',                price:195, copay:{低收:0,中低:9,  一般:31, 自費:195}, note:'30分/組' },
+    { code:'BA15-2', name:'協助家務（共用）',                price:195, copay:{低收:0,中低:101,一般:112,自費:195}, note:'30分/組' },
+    { code:'BA16-1', name:'代購或代領或代送（自用）',        price:130, copay:{低收:0,中低:6,  一般:20, 自費:130}, note:'' },
+    { code:'BA16-2', name:'代購或代領或代送（共用）',        price:130, copay:{低收:0,中低:68, 一般:75, 自費:130}, note:'' },
+    { code:'BA17a',  name:'人工氣道內（非氣管）分泌物抽吸', price:75,  copay:{低收:0,中低:3,  一般:12, 自費:75 }, note:'' },
+    { code:'BA17b',  name:'口腔內（懸壅垂之前）分泌物抽吸', price:50,  copay:{低收:0,中低:2,  一般:8,  自費:50 }, note:'' },
+    { code:'BA17c',  name:'尿管及鼻胃管之清潔與固定',       price:50,  copay:{低收:0,中低:2,  一般:8,  自費:50 }, note:'' },
+    { code:'BA17d1', name:'血糖機驗血糖',                    price:50,  copay:{低收:0,中低:2,  一般:8,  自費:50 }, note:'' },
+    { code:'BA17d2', name:'甘油球通便',                      price:50,  copay:{低收:0,中低:2,  一般:8,  自費:50 }, note:'' },
+    { code:'BA17e',  name:'依指示置入藥盒',                  price:50,  copay:{低收:0,中低:2,  一般:8,  自費:50 }, note:'' },
+    { code:'BA18',   name:'安全看視',                        price:200, copay:{低收:0,中低:10, 一般:32, 自費:200}, note:'30分/組' },
+    { code:'BA20',   name:'陪伴服務',                        price:175, copay:{低收:0,中低:8,  一般:28, 自費:175}, note:'30分/組' },
+    { code:'BA22',   name:'巡視服務',                        price:130, copay:{低收:0,中低:6,  一般:20, 自費:130}, note:'' },
+    { code:'BA23',   name:'協助洗頭',                        price:200, copay:{低收:0,中低:10, 一般:32, 自費:200}, note:'' },
+    { code:'BA24',   name:'協助排泄',                        price:220, copay:{低收:0,中低:11, 一般:35, 自費:220}, note:'' }
+];
+
+/* 喘息 / 短照服務（年度額度獨立計算）
+   來源：衛福部長照給付及支付基準（114年）
+   GA09 CMS2-6=32,340元/年(42組), CMS7-8=48,510元/年(63組)
+   SC09 CMS2-6=87,780元/年(114組), CMS7-8=71,610元/年(93組) */
+const RESP_SERVICES = [
+    { code:'GA09', name:'居家喘息服務', price:770, copay:{低收:0,中低:38,一般:123,自費:770}, note:'2小時/組' },
+    { code:'SC09', name:'短照服務',     price:770, copay:{低收:0,中低:38,一般:123,自費:770}, note:'2小時/組' }
+];
+
+const RESP_ANNUAL = {
+    GA09: { 2:42, 3:42, 4:42, 5:42, 6:42, 7:63, 8:63 },
+    SC09: { 2:114,3:114,4:114,5:114,6:114,7:93, 8:93  }
+};
+
+let selCMS=null, selWelfare=null, units={}, respUnits={};
+let printScale=1;
+
+/* ═══ 夜間模式 ═══ */
+function toggleDark() {
+    const next = document.documentElement.dataset.theme==='dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem('cmsTheme', next);
+    document.getElementById('darkToggle').textContent = next==='dark' ? '☀️ 白天' : '🌙 夜間';
+}
+(function(){
+    const t = localStorage.getItem('cmsTheme')||'light';
+    document.documentElement.dataset.theme = t;
+    document.addEventListener('DOMContentLoaded',()=>{
+        document.getElementById('darkToggle').textContent = t==='dark'?'☀️ 白天':'🌙 夜間';
+    });
+})();
+
+/* ═══ 初始化 UI ═══ */
+function init() {
+    /* CMS 按鈕 */
+    const cg = document.getElementById('cmsGrid');
+    for (let lv=2;lv<=8;lv++) {
+        const b=document.createElement('button');
+        b.className='cms-btn'; b.id=`cms-${lv}`;
+        b.innerHTML=`<div class="lv-top">第${lv}級</div><div class="lv-quota">$${CMS_QUOTA[lv].toLocaleString()}</div>`;
+        b.onclick=()=>pickCMS(lv); cg.appendChild(b);
+    }
+    /* 福利身分 */
+    const wg=document.getElementById('welfareGrid');
+    WELFARE.forEach(w=>{
+        const b=document.createElement('button');
+        b.className='welfare-btn'; b.id=`welfare-${w.key}`;
+        b.innerHTML=`<div class="w-name">${w.label}</div><div class="w-rate">${w.rate}</div>`;
+        b.onclick=()=>pickWelfare(w.key); wg.appendChild(b);
+    });
+    /* BA 服務列表 */
+    const sl=document.getElementById('serviceList');
+    SERVICES.forEach(svc=>{
+        const r=document.createElement('div'); r.className='svc-row';
+        r.innerHTML=`
+            <div><div class="svc-code">${svc.code}</div></div>
+            <div class="svc-name">${svc.name}${svc.note?`<span class="svc-note-tag">${svc.note}</span>`:''}</div>
+            <div class="cell-price">$${svc.price}</div>
+            <div class="cell-copay" id="cp-${svc.code}">─</div>
+            <div class="cell-units"><input type="number" class="unit-inp" id="inp-${svc.code}" min="0" max="999" placeholder="0" inputmode="numeric" oninput="onUnit('${svc.code}',this.value)"></div>
+            <div class="cell-sub" id="sub-${svc.code}">─</div>`;
+        sl.appendChild(r);
+    });
+    /* 喘息服務列表 */
+    const rl=document.getElementById('respList');
+    RESP_SERVICES.forEach(svc=>{
+        const r=document.createElement('div'); r.className='resp-row';
+        r.innerHTML=`
+            <div><div class="resp-code">${svc.code}</div></div>
+            <div class="svc-name">${svc.name}${svc.note?`<span class="svc-note-tag">${svc.note}</span>`:''}</div>
+            <div class="cell-limit" id="rlimit-${svc.code}">─</div>
+            <div class="cell-copay" id="rcp-${svc.code}">─</div>
+            <div class="cell-units"><input type="number" class="unit-inp amber-inp" id="rinp-${svc.code}" min="0" max="999" placeholder="0" inputmode="numeric" oninput="onRespUnit('${svc.code}',this.value)"></div>
+            <div class="cell-sub" id="rsub-${svc.code}">─</div>`;
+        rl.appendChild(r);
+    });
+}
+
+/* ═══ 選擇 CMS ═══ */
+function pickCMS(lv) {
+    selCMS=lv;
+    document.querySelectorAll('.cms-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById(`cms-${lv}`).classList.add('active');
+    updateRespInfo(); showSections(); calculate();
+}
+/* ═══ 選擇福利身分 ═══ */
+function pickWelfare(key) {
+    selWelfare=key;
+    document.querySelectorAll('.welfare-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById(`welfare-${key}`).classList.add('active');
+    refreshCopayCol(); updateRespInfo(); showSections(); calculate();
+}
+
+function showSections() {
+    const r=!!(selCMS&&selWelfare);
+    document.getElementById('hintBar').classList.toggle('hidden',r);
+    ['serviceCard','respCard','summaryCard','btnRow'].forEach(id=>{
+        document.getElementById(id).style.display=r?'':'none';
+    });
+}
+
+/* 更新喘息年度上限顯示 */
+function updateRespInfo() {
+    const infoEl=document.getElementById('respInfo');
+    if (!selCMS) { infoEl.textContent='請先選擇 CMS 等級以顯示年度組數上限'; return; }
+    const ga=RESP_ANNUAL.GA09[selCMS], sc=RESP_ANNUAL.SC09[selCMS];
+    infoEl.innerHTML=`📋 CMS 第${selCMS}級年度上限：GA09 居家喘息 = <strong>${ga}組</strong>（每年）｜ SC09 短照 = <strong>${sc}組</strong>（每年）<br>
+        <span style="font-size:10px;color:var(--amber)">※ 此額度為年度累計上限，獨立計算，不計入每月 BA 照顧服務額度</span>`;
+    RESP_SERVICES.forEach(svc=>{
+        const lim=RESP_ANNUAL[svc.code][selCMS];
+        const el=document.getElementById(`rlimit-${svc.code}`);
+        if(el) el.textContent=`${lim}組`;
+        const cp=document.getElementById(`rcp-${svc.code}`);
+        if(cp) cp.textContent=selWelfare?`$${svc.copay[selWelfare]}`:'─';
+        refreshRespSub(svc.code);
+    });
+}
+
+/* 重整自付/組欄 */
+function refreshCopayCol() {
+    SERVICES.forEach(svc=>{
+        const el=document.getElementById(`cp-${svc.code}`);
+        if(el) el.textContent=selWelfare?`$${svc.copay[selWelfare]}`:'─';
+        refreshSub(svc.code);
+    });
+    RESP_SERVICES.forEach(svc=>{
+        const el=document.getElementById(`rcp-${svc.code}`);
+        if(el) el.textContent=selWelfare?`$${svc.copay[selWelfare]}`:'─';
+        refreshRespSub(svc.code);
+    });
+}
+
+/* BA 組數輸入 */
+function onUnit(code,val) {
+    let n=parseInt(val); units[code]=(isNaN(n)||n<0)?0:n;
+    refreshSub(code); calculate();
+}
+function refreshSub(code) {
+    const el=document.getElementById(`sub-${code}`); if(!el) return;
+    const svc=SERVICES.find(s=>s.code===code), qty=units[code]||0;
+    if(!selWelfare||qty===0){el.textContent='─';el.className='cell-sub';return;}
+    const st=svc.copay[selWelfare]*qty;
+    el.textContent=`$${st.toLocaleString()}`; el.className=st>0?'cell-sub has-val':'cell-sub';
+}
+
+/* 喘息組數輸入 */
+function onRespUnit(code,val) {
+    let n=parseInt(val); respUnits[code]=(isNaN(n)||n<0)?0:n;
+    refreshRespSub(code); calculate();
+}
+function refreshRespSub(code) {
+    const el=document.getElementById(`rsub-${code}`); if(!el) return;
+    const svc=RESP_SERVICES.find(s=>s.code===code), qty=respUnits[code]||0;
+    if(!selWelfare||qty===0){el.textContent='─';el.className='cell-sub';return;}
+    const cp=svc.copay[selWelfare], st=cp*qty;
+    el.textContent=`$${st.toLocaleString()}`; el.className=st>0?'cell-sub has-val':'cell-sub';
+}
+
+/* ═══ 主計算 ═══ */
+function calcAll() {
+    const quota=CMS_QUOTA[selCMS], isSP=(selWelfare==='自費');
+    let govUsed=0, baCopay=0;
+    SERVICES.forEach(svc=>{
+        const qty=units[svc.code]||0; if(!qty) return;
+        govUsed+=(svc.price-svc.copay[selWelfare])*qty;
+        baCopay+=svc.copay[selWelfare]*qty;
+    });
+    const remaining=isSP?Infinity:quota-govUsed;
+    const excess=(!isSP&&remaining<0)?Math.abs(remaining):0;
+    let respCopay={};
+    RESP_SERVICES.forEach(svc=>{
+        const qty=respUnits[svc.code]||0;
+        respCopay[svc.code]=svc.copay[selWelfare]*qty;
+    });
+    const totalRespCopay=Object.values(respCopay).reduce((a,b)=>a+b,0);
+    const grand=baCopay+excess+totalRespCopay;
+    return {quota,isSP,govUsed,baCopay,remaining,excess,respCopay,grand};
+}
+
+function calculate() {
+    if(!selCMS||!selWelfare) return;
+    const {quota,isSP,govUsed,baCopay,remaining,excess,respCopay,grand}=calcAll();
+
+    const progSec=document.getElementById('progSection');
+    if(isSP){ progSec.style.display='none'; }
+    else {
+        progSec.style.display='';
+        const pct=Math.min(govUsed/quota*100,100);
+        document.getElementById('progText').textContent=`$${govUsed.toLocaleString()} / $${quota.toLocaleString()}`;
+        const fill=document.getElementById('progFill');
+        fill.style.width=pct+'%'; fill.className='prog-fill'+(excess>0?' over':'');
+    }
+    document.getElementById('selfpayNote').className='selfpay-note'+(isSP?' show':'');
+    document.getElementById('warnBox').className='warn-box'+(excess>0?' show':'');
+    if(excess>0) setText('excessAmt',`$${excess.toLocaleString()}`);
+    document.getElementById('quotaRow').style.display=isSP?'none':'';
+    document.getElementById('remainRow').style.display=isSP?'none':'';
+    if(!isSP){
+        setText('sMonthlyQuota',`$${quota.toLocaleString()}`);
+        const re=document.getElementById('sRemain');
+        if(remaining>=0){re.textContent=`$${remaining.toLocaleString()}`;re.className='sum-val green';}
+        else{re.textContent=`超出 $${excess.toLocaleString()}`;re.className='sum-val red';}
+    }
+    setText('sCopay',`$${baCopay.toLocaleString()}`);
+    setText('sExcess',excess>0?`$${excess.toLocaleString()}`:'$0');
+    RESP_SERVICES.forEach(svc=>{
+        setText(`sResp${svc.code}`,`$${(respCopay[svc.code]||0).toLocaleString()}`);
+    });
+    setText('sGrand',grand.toLocaleString());
+}
+
+/* ═══ 清除 ═══ */
+function resetAll() {
+    if(!confirm('確定要清除所有組數，重新開始嗎？')) return;
+    units={}; respUnits={};
+    [...SERVICES,...RESP_SERVICES].forEach(svc=>{
+        const pfx=SERVICES.includes(svc)?'':'r';
+        const inp=document.getElementById(`${pfx}inp-${svc.code}`);
+        if(inp) inp.value='';
+        const sub=document.getElementById(`${pfx}sub-${svc.code}`);
+        if(sub){sub.textContent='─';sub.className='cell-sub';}
+    });
+    document.getElementById('progFill').style.width='0%';
+    document.getElementById('progText').textContent='$0 / $0';
+    document.getElementById('warnBox').classList.remove('show');
+    setText('sCopay','$0');setText('sExcess','$0');
+    RESP_SERVICES.forEach(s=>setText(`sResp${s.code}`,'$0'));
+    setText('sGrand','0');
+    if(selCMS&&selWelfare!=='自費'){
+        const q=CMS_QUOTA[selCMS]; setText('sMonthlyQuota',`$${q.toLocaleString()}`);
+        const re=document.getElementById('sRemain');
+        re.textContent=`$${q.toLocaleString()}`;re.className='sum-val green';
+        document.getElementById('progText').textContent=`$0 / $${q.toLocaleString()}`;
+    }
+}
+
+/* ═══ PDF Modal ═══ */
+function openPdfModal() {
+    if(!selCMS||!selWelfare){alert('請先選擇長照等級與福利身分');return;}
+    /* 重設到第一頁，預設「僅顯示有服務」 */
+    document.querySelector('input[name="pdfMode"][value="with-service"]').checked=true;
+    document.getElementById('selCountBar').style.display='none';
+    document.getElementById('modalPanel1').style.display='';
+    document.getElementById('modalPanel2').style.display='none';
+    document.getElementById('pdfModal').style.display='flex';
+}
+function closeModal(){ document.getElementById('pdfModal').style.display='none'; }
+function modalBgClick(e){ if(e.target===document.getElementById('pdfModal')) closeModal(); }
+
+function setFontScale(scale, btnId) {
+    printScale=scale;
+    document.querySelectorAll('.fs-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById(btnId).classList.add('active');
+}
+
+/* 進入第二頁：建立勾選清單 */
+function openCustomPanel() {
+    /* 確保 radio 選到 custom */
+    document.querySelector('input[name="pdfMode"][value="custom"]').checked=true;
+    const listEl=document.getElementById('customList');
+    listEl.innerHTML='';
+
+    function makeGroup(label) {
+        const g=document.createElement('div');
+        g.className='chk-grp-label'; g.textContent=label;
+        listEl.appendChild(g);
+    }
+    function makeItem(code, name, qty, isAmber) {
+        const row=document.createElement('label');
+        row.className='chk-item';
+        const cb=document.createElement('input');
+        cb.type='checkbox'; cb.id=`chk-${code}`; cb.checked=(qty>0);
+        const codeEl=document.createElement('span');
+        codeEl.className='chk-code'+(isAmber?' amber':'');
+        codeEl.textContent=code;
+        const nameEl=document.createElement('span');
+        nameEl.className='chk-name'; nameEl.textContent=name;
+        row.appendChild(cb); row.appendChild(codeEl); row.appendChild(nameEl);
+        if(qty>0){
+            const qEl=document.createElement('span');
+            qEl.className='chk-qty'; qEl.textContent=qty+'組';
+            row.appendChild(qEl);
+        }
+        listEl.appendChild(row);
+    }
+    makeGroup('BA 照顧及專業服務');
+    SERVICES.forEach(svc=>makeItem(svc.code, svc.name, units[svc.code]||0, false));
+    makeGroup('喘息 / 短照服務');
+    RESP_SERVICES.forEach(svc=>makeItem(svc.code, svc.name, respUnits[svc.code]||0, true));
+
+    document.getElementById('modalPanel1').style.display='none';
+    document.getElementById('modalPanel2').style.display='';
+}
+
+/* 確定並回第一頁，顯示已選數量 */
+function confirmCustom() {
+    const total=document.querySelectorAll('#customList input[type="checkbox"]:checked').length;
+    const bar=document.getElementById('selCountBar');
+    bar.textContent=`已選擇 ${total} 個服務項目`;
+    bar.style.display='';
+    document.getElementById('modalPanel2').style.display='none';
+    document.getElementById('modalPanel1').style.display='';
+}
+
+/* 全選 / 全取消 */
+function checkAll(val) {
+    document.querySelectorAll('#customList input[type="checkbox"]').forEach(cb=>cb.checked=val);
+}
+
+/* ═══ 列印 ═══ */
+function doPrint() {
+    const mode=document.querySelector('input[name="pdfMode"]:checked').value;
+    let baList,rList;
+    if(mode==='all'){        baList=SERVICES; rList=RESP_SERVICES; }
+    else if(mode==='with-service'){
+        baList=SERVICES.filter(s=>(units[s.code]||0)>0);
+        rList=RESP_SERVICES.filter(s=>(respUnits[s.code]||0)>0);
+    } else {
+        baList=SERVICES.filter(s=>document.getElementById(`chk-${s.code}`)?.checked);
+        rList=RESP_SERVICES.filter(s=>document.getElementById(`chk-${s.code}`)?.checked);
+    }
+    if(!baList.length&&!rList.length){alert('沒有符合條件的服務項目，請調整設定');return;}
+    buildPrintArea(baList,rList);
+    document.getElementById('printArea').style.zoom=printScale;
+    closeModal();
+    setTimeout(()=>window.print(),150);
+}
+
+function buildPrintArea(baList,rList) {
+    const t=new Date(), ds=`${t.getFullYear()}年${t.getMonth()+1}月${t.getDate()}日`;
+    const w=WELFARE.find(x=>x.key===selWelfare);
+    const {quota,isSP,baCopay,remaining,excess,respCopay,grand}=calcAll();
+
+    const baRows=baList.map(svc=>{
+        const qty=units[svc.code]||0, cp=svc.copay[selWelfare], st=cp*qty;
+        return `<tr><td>${svc.code}</td><td class="tdl">${svc.name}${svc.note?`<br><small>${svc.note}</small>`:''}</td>
+            <td>$${svc.price}</td><td>$${cp}</td><td>${qty||'─'}</td>
+            <td style="font-weight:700">${qty>0?'$'+st.toLocaleString():'─'}</td></tr>`;
+    }).join('');
+
+    const rRows=rList.map(svc=>{
+        const qty=respUnits[svc.code]||0, cp=svc.copay[selWelfare], st=cp*qty;
+        const lim=RESP_ANNUAL[svc.code][selCMS];
+        return `<tr><td>${svc.code}</td><td class="tdl">${svc.name}${svc.note?`<br><small>${svc.note}</small>`:''}</td>
+            <td>${lim}組/年</td><td>$${cp}</td><td>${qty||'─'}</td>
+            <td style="font-weight:700">${qty>0?'$'+st.toLocaleString():'─'}</td></tr>`;
+    }).join('');
+
+    const baTableHtml=baList.length?`
+        <div class="pa-section-label">BA 照顧及專業服務</div>
+        <table class="pa-table">
+            <thead class="pa-ba-head"><tr><th>編號</th><th class="thl">服務項目</th><th>給付價格</th><th>自付/組</th><th>組數</th><th>小計自付</th></tr></thead>
+            <tbody>${baRows}</tbody></table>`:'';
+
+    const rTableHtml=rList.length?`
+        <div class="pa-section-label amber">居家喘息 / 短照服務（年度額度）</div>
+        <table class="pa-table">
+            <thead class="pa-resp-head"><tr><th>編號</th><th class="thl">服務項目</th><th>年度上限</th><th>自付/組</th><th>本月組數</th><th>本月自付</th></tr></thead>
+            <tbody>${rRows}</tbody></table>`:'';
+
+    const rGA=respCopay['GA09']||0, rSC=respCopay['SC09']||0;
+
+    document.getElementById('printArea').innerHTML=`
+        <div class="pa-hdr">
+            <h1>臺南市私立全能居家長照機構</h1>
+            <h2>居家照顧服務計費明細</h2>
+        </div>
+        <div class="pa-info">
+            <span>長照等級：第 ${selCMS} 級</span>
+            <span>福利身分：${w.label}</span>
+            <span>BA月給付額度：${isSP?'全額自費':'$'+quota.toLocaleString()}</span>
+        </div>
+        ${baTableHtml}
+        ${rTableHtml}
+        <div class="pa-summary-box">
+            <div class="pa-sum-section">BA 照顧及專業服務</div>
+            ${!isSP?`
+            <div class="pa-sum-row"><span>月給付額度上限</span><span>$${quota.toLocaleString()}</span></div>
+            <div class="pa-sum-row"><span>剩餘可用額度</span>
+                <span>${remaining>=0?'$'+remaining.toLocaleString():'超出 $'+excess.toLocaleString()}</span></div>`:''}
+            <div class="pa-sum-row"><span>民眾部分負擔</span><span>$${baCopay.toLocaleString()}</span></div>
+            <div class="pa-sum-row"><span>超額自費金額</span><span>${excess>0?'$'+excess.toLocaleString():'$0'}</span></div>
+            <div class="pa-sum-section amber">居家喘息 / 短照服務（年度）</div>
+            <div class="pa-sum-row"><span>GA09 居家喘息本月自付</span><span>$${rGA.toLocaleString()}</span></div>
+            <div class="pa-sum-row"><span>SC09 短照服務本月自付</span><span>$${rSC.toLocaleString()}</span></div>
+            <div class="pa-grand">
+                <span>本月個案需自付總金額</span>
+                <span>$ ${grand.toLocaleString()}</span>
+            </div>
+        </div>
+        <div class="pa-footer">
+            臺南市私立全能居家長照機構<br>
+            諮詢電話：06-313-1085<br>
+            地址：710010 臺南市永康區中山東路430號5樓A室
+        </div>`;
+}
+
+function setText(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
+init();
+</script>
+
+<script>
+/* ── LINE 分享 ── */
+function shareToLine() {
+    if(!selCMS||!selWelfare){ alert('請先完成計算後再分享'); return; }
+    const w   = WELFARE.find(x=>x.key===selWelfare);
+    const {quota,isSP,baCopay,remaining,excess,respCopay,grand} = calcAll();
+    const t   = new Date();
+    const ds  = `${t.getFullYear()}年${t.getMonth()+1}月${t.getDate()}日`;
+
+    /* 計算有使用的 BA 服務 */
+    const usedBA = SERVICES.filter(s=>(units[s.code]||0)>0)
+        .map(s=>{
+            const qty=units[s.code], cp=s.copay[selWelfare];
+            return `  ${s.code} ${s.name}　×${qty}組　自付$${(cp*qty).toLocaleString()}`;
+        }).join('\n');
+
+    /* 計算有使用的喘息服務 */
+    const usedResp = RESP_SERVICES.filter(s=>(respUnits[s.code]||0)>0)
+        .map(s=>{
+            const qty=respUnits[s.code], cp=s.copay[selWelfare];
+            return `  ${s.code} ${s.name}　×${qty}組　自付$${(cp*qty).toLocaleString()}`;
+        }).join('\n');
+
+    let msg = `【全能居家長照 計費明細】\n`;
+    msg += `${ds}\n`;
+    msg += `長照等級：第 ${selCMS} 級　`;
+    msg += `福利身分：${w.label}（${w.rate}）\n`;
+    msg += `${'─'.repeat(22)}\n`;
+
+    msg += `▌BA 照顧及專業服務（本月）\n`;
+    if(usedBA) msg += usedBA + '\n';
+    if(!isSP){
+        msg += `月給付額度：$${quota.toLocaleString()}\n`;
+        if(remaining>=0)
+            msg += `剩餘可用額度：$${remaining.toLocaleString()}\n`;
+        else
+            msg += `超出額度：$${excess.toLocaleString()}\n`;
+    }
+    msg += `民眾自付小計：$${baCopay.toLocaleString()}\n`;
+    if(excess>0) msg += `超額自費：$${excess.toLocaleString()}\n`;
+
+    const rGA=respCopay['GA09']||0, rSC=respCopay['SC09']||0;
+    if(rGA>0||rSC>0||usedResp){
+        msg += `${'─'.repeat(22)}\n`;
+        msg += `▌居家喘息 / 短照服務\n`;
+        if(usedResp) msg += usedResp + '\n';
+        if(rGA>0) msg += `GA09 居家喘息自付：$${rGA.toLocaleString()}\n`;
+        if(rSC>0) msg += `SC09 短照服務自付：$${rSC.toLocaleString()}\n`;
+    }
+
+    msg += `${'═'.repeat(22)}\n`;
+    msg += `✦ 本月需自付總金額：$${grand.toLocaleString()} ✦\n`;
+    msg += `${'═'.repeat(22)}\n`;
+    msg += `臺南市私立全能居家長照機構\n`;
+    msg += `諮詢電話：06-313-1085`;
+
+    /* 開啟 LINE 分享 */
+    const url = 'https://line.me/R/msg/text/?' + encodeURIComponent(msg);
+    window.open(url, '_blank');
+}
+
+/* ── PWA：動態產生 App 桌面圖示 ── */
+(function() {
+    try {
+        const c = document.createElement('canvas');
+        c.width = c.height = 180;
+        const ctx = c.getContext('2d');
+        /* 綠色圓角背景 */
+        ctx.beginPath();
+        ctx.moveTo(30,0); ctx.lineTo(150,0);
+        ctx.quadraticCurveTo(180,0,180,30);
+        ctx.lineTo(180,150); ctx.quadraticCurveTo(180,180,150,180);
+        ctx.lineTo(30,180);  ctx.quadraticCurveTo(0,180,0,150);
+        ctx.lineTo(0,30);    ctx.quadraticCurveTo(0,0,30,0);
+        ctx.closePath();
+        ctx.fillStyle = '#1a6b45';
+        ctx.fill();
+        /* 白色「照」字 */
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 90px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('照', 90, 98);
+        /* 掛載為 apple-touch-icon */
+        const lnk = document.createElement('link');
+        lnk.rel = 'apple-touch-icon';
+        lnk.href = c.toDataURL('image/png');
+        document.head.appendChild(lnk);
+    } catch(e) {}
+})();
+
+/* ── PWA：註冊 Service Worker（讓 App 離線也能使用）── */
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
