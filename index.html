@@ -66,6 +66,7 @@
 
     /* ══ CMS 按鈕 ══ */
     .cms-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+    @media (max-width:480px) { .cms-grid { grid-template-columns:repeat(4,1fr); } }
     .cms-btn { background:var(--row-alt); border:2px solid var(--bdr); border-radius:9px;
                padding:5px 2px; text-align:center; cursor:pointer; transition:all .15s; user-select:none; }
     .cms-btn .lv-top   { font-size:10px; font-weight:600; color:var(--muted); }
