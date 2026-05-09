@@ -935,14 +935,14 @@ function shareToLine() {
     const usedBA = SERVICES.filter(s=>(units[s.code]||0)>0)
         .map(s=>{
             const qty=units[s.code], cp=s.copay[selWelfare];
-            return `  ${s.code} ${s.name}　×${qty}組　自付$${(cp*qty).toLocaleString()}`;
+            return `  ${s.code} ${s.name}　$${cp}×${qty}組　自付$${(cp*qty).toLocaleString()}`;
         }).join('\n');
 
     /* 計算有使用的喘息服務 */
     const usedResp = RESP_SERVICES.filter(s=>(respUnits[s.code]||0)>0)
         .map(s=>{
             const qty=respUnits[s.code], cp=s.copay[selWelfare];
-            return `  ${s.code} ${s.name}　×${qty}組　自付$${(cp*qty).toLocaleString()}`;
+            return `  ${s.code} ${s.name}　$${cp}×${qty}組　自付$${(cp*qty).toLocaleString()}`;
         }).join('\n');
 
     let msg = `【全能居家長照 計費明細】\n`;
